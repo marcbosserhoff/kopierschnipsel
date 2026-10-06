@@ -1,0 +1,45 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: ipmi-nodes
+  namespace: monitoring
+  labels:
+    # Helm-Release-Name eures kube-prometheus-stack einsetzen:
+    release: kube-prometheus-stack
+spec:
+  metricsPath: /ipmi
+  scrapeInterval: 1m
+  scrapeTimeout: 30s
+
+  params:
+    module:
+      - default
+
+  kubernetesSDConfigs:
+    - role: Node
+
+  relabelings:
+    # Nur Nodes mit einer IPMI-Adresse auswählen.
+    - action: keep
+      sourceLabels:
+        - __meta_kubernetes_node_label_feature_node_kubernetes_io_ipmi_address
+      regex: ".+"
+
+    # IP aus dem Node-Label als target-Parameter übergeben.
+    - sourceLabels:
+        - __meta_kubernetes_node_label_feature_node_kubernetes_io_ipmi_address
+      targetLabel: __param_target
+
+    # BMC-IP und Node-Name an den Metriken erhalten.
+    - sourceLabels: [__param_target]
+      targetLabel: instance
+
+    - sourceLabels: [__meta_kubernetes_node_name]
+      targetLabel: node
+
+    - targetLabel: job
+      replacement: ipmi
+
+    # Prometheus ruft den zentralen Exporter auf.
+    - targetLabel: __address__
+      replacement: prometheus-ipmi-exporter.monitoring.svc:9290
