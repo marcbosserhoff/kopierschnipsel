@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace where Prometheus selects ServiceMonitor objects. Must already exist.
+namespace: monitoring
+
+# EDIT to match your Prometheus.spec.serviceMonitorSelector. The selector may use
+# another key, several labels, or no release label; this is an explicit example.
+labels:
+  - pairs:
+      release: CHANGEME
+    includeSelectors: false
+
+resources:
+  - servicemonitor.yaml

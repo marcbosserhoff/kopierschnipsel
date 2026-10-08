@@ -1,0 +1,18 @@
+# Configuration for local /metrics scrapes; no BMC address or credentials.
+# FreeIPMI's OPENIPMI driver uses the Linux IPMI character device.
+modules:
+  default:
+    driver: OPENIPMI
+    timeout: 5000
+    collectors:
+      - bmc
+      - ipmi
+      - chassis
+    custom_args:
+      bmc:
+        - --driver-device=/dev/ipmi0
+      ipmi:
+        - --driver-device=/dev/ipmi0
+        - --sdr-cache-directory=/var/cache/ipmi-exporter
+      chassis:
+        - --driver-device=/dev/ipmi0

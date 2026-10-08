@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ipmi-host
+  labels:
+    app.kubernetes.io/name: ipmi-host-monitoring
+spec:
+  # Reuse the existing operator-managed kubelet Service and its node endpoints.
+  # Verify its namespace, labels and port name with scripts/check-kubernetes.sh.
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      k8s-app: kubelet
+  # Requires a compatible Operator CRD and Prometheus >= 2.37.0.
+  # Prometheus needs permission to list/watch Nodes.
+  attachMetadata:
+    node: true
+  # Discovery inherits Prometheus.spec.serviceDiscoveryRole. Do not change the
+  # role unless matching kubelet Endpoints/EndpointSlices actually exist.
+  endpoints:
+    - port: https-metrics
+      scheme: http
+      path: /metrics
+      interval: 60s
+      scrapeTimeout: 30s
+      relabelings:
+        # Existing NFD label is only an eligibility marker. Its BMC IP value is
+        # NEVER used as the address of this local host exporter.
+        - action: keep
+          sourceLabels:
+            - __meta_kubernetes_node_labelpresent_feature_node_kubernetes_io_ipmi_address
+          regex: "true"
+        # Kubelet discovery already provides a node address with a port. Replace
+        # only the port; brackets around IPv6 addresses are preserved.
+        - sourceLabels:
+            - __address__
+          targetLabel: __address__
+          regex: "(.+):[0-9]+"
+          replacement: "${1}:9290"
+        - sourceLabels:
+            - __meta_kubernetes_node_name
+          targetLabel: node
+        - sourceLabels:
+            - __meta_kubernetes_node_name
+          targetLabel: instance
+        - targetLabel: job
+          replacement: ipmi-host

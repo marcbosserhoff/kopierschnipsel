@@ -1,0 +1,40 @@
+# OPTIONAL alternative to the default ServiceMonitor. Do not enable both jobs.
+# Requires the ScrapeConfig CRD with kubernetesSDConfigs support.
+# EDIT namespace and metadata labels to match BOTH Prometheus ScrapeConfig
+# selectors. This file is deliberately absent from the default kustomization.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: ipmi-host
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ipmi-host-monitoring
+    release: CHANGEME
+spec:
+  scheme: HTTP
+  metricsPath: /metrics
+  scrapeInterval: 60s
+  scrapeTimeout: 30s
+  kubernetesSDConfigs:
+    - role: Node
+  relabelings:
+    # Node discovery exposes Node metadata without attachMetadata.
+    - action: keep
+      sourceLabels:
+        - __meta_kubernetes_node_labelpresent_feature_node_kubernetes_io_ipmi_address
+      regex: "true"
+    # Prometheus Node discovery prioritizes InternalIP, then ExternalIP, then
+    # DNS/Hostname. Ensure its selected node address reaches the host exporter.
+    - sourceLabels:
+        - __address__
+      targetLabel: __address__
+      regex: "(.+):[0-9]+"
+      replacement: "${1}:9290"
+    - sourceLabels:
+        - __meta_kubernetes_node_name
+      targetLabel: node
+    - sourceLabels:
+        - __meta_kubernetes_node_name
+      targetLabel: instance
+    - targetLabel: job
+      replacement: ipmi-host
