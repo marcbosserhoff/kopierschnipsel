@@ -1,0 +1,55 @@
+(
+  (
+    (
+      (
+        sum by (consumergroup, topic) (
+          kafka_consumergroup_lag{consumergroup=~"$consumergroup", topic=~"$topic"}
+        )
+        - 5 * (
+          sum by (consumergroup, topic) (
+            delta(kafka_consumergroup_current_offset{consumergroup=~"$consumergroup", topic=~"$topic"}[5m])
+          ) / 300
+        )
+      )
+      /
+      clamp_min(
+        (
+          sum by (consumergroup, topic) (
+            delta(kafka_consumergroup_current_offset{consumergroup=~"$consumergroup", topic=~"$topic"}[5m])
+          ) / 300
+        )
+        - on (topic) group_left
+        (
+          sum by (topic) (
+            delta(kafka_topic_partition_current_offset{topic=~"$topic"}[5m])
+          ) / 300
+        ),
+        0
+      )
+    )
+    and on (consumergroup, topic)
+    (
+      sum by (consumergroup, topic) (
+        kafka_consumergroup_lag{consumergroup=~"$consumergroup", topic=~"$topic"}
+      )
+      > 5 * (
+        sum by (consumergroup, topic) (
+          delta(kafka_consumergroup_current_offset{consumergroup=~"$consumergroup", topic=~"$topic"}[5m])
+        ) / 300
+      )
+    )
+  )
+  or on (consumergroup, topic)
+  (
+    (
+      sum by (consumergroup, topic) (
+        kafka_consumergroup_lag{consumergroup=~"$consumergroup", topic=~"$topic"}
+      )
+      <= 5 * (
+        sum by (consumergroup, topic) (
+          delta(kafka_consumergroup_current_offset{consumergroup=~"$consumergroup", topic=~"$topic"}[5m])
+        ) / 300
+      )
+    ) * 0
+  )
+) / 60
